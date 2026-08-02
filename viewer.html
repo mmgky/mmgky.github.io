@@ -2,9 +2,13 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#111827">
 
-  <title>PDF 预览</title>
+  <title>PDF 连续预览</title>
 
   <style>
     * {
@@ -12,15 +16,26 @@
     }
 
     :root {
+      color-scheme: dark;
       font-family:
+        Inter,
+        ui-sans-serif,
         system-ui,
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         "Microsoft YaHei",
         sans-serif;
-      color: #e5e7eb;
-      background: #111827;
+
+      --toolbar-bg: #1f2937;
+      --stage-bg: #111827;
+      --button-bg: #374151;
+      --button-hover: #4b5563;
+      --border: #4b5563;
+      --text: #f9fafb;
+      --muted: #cbd5e1;
+      --accent: #2563eb;
+      --danger: #fca5a5;
     }
 
     html,
@@ -28,97 +43,159 @@
       width: 100%;
       height: 100%;
       margin: 0;
+      overflow: hidden;
+      color: var(--text);
+      background: var(--stage-bg);
     }
 
     body {
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+    }
+
+    button,
+    input,
+    a {
+      font: inherit;
     }
 
     .toolbar {
-      z-index: 10;
+      z-index: 20;
       display: flex;
-      min-height: 58px;
+      min-height: 60px;
       align-items: center;
-      gap: 14px;
-      padding: 9px 14px;
+      gap: 10px;
+      padding:
+        max(9px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        9px
+        max(12px, env(safe-area-inset-left));
       border-bottom: 1px solid #374151;
-      background: #1f2937;
-      box-shadow: 0 5px 18px rgb(0 0 0 / 20%);
+      background: rgb(31 41 55 / 96%);
+      box-shadow: 0 5px 20px rgb(0 0 0 / 24%);
+      backdrop-filter: blur(14px);
     }
 
-    .back,
-    .download,
-    button {
-      display: inline-flex;
-      min-height: 38px;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 13px;
-      border: 1px solid #4b5563;
-      border-radius: 9px;
-      color: #f9fafb;
-      background: #374151;
-      font: inherit;
-      font-weight: 650;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .back:hover,
-    .download:hover,
-    button:hover:not(:disabled) {
-      border-color: #60a5fa;
-      background: #4b5563;
-    }
-
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.45;
-    }
-
-    .download {
-      border-color: #2563eb;
-      background: #2563eb;
-    }
-
-    .download:hover {
-      background: #1d4ed8;
+    .title-block {
+      min-width: 0;
+      flex: 1;
     }
 
     .title {
-      min-width: 0;
-      flex: 1;
       overflow: hidden;
-      font-weight: 700;
+      font-weight: 750;
+      line-height: 1.25;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .route {
+      display: flex;
+      min-height: 18px;
+      align-items: center;
+      gap: 6px;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .route-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .route[data-state="accelerated"] .route-dot {
+      background: #34d399;
+    }
+
+    .route[data-state="local"] .route-dot {
+      background: #60a5fa;
+    }
+
+    .route[data-state="error"] .route-dot {
+      background: #f87171;
     }
 
     .controls {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
+    }
+
+    .button,
+    .icon-button,
+    .page-input {
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      outline: none;
+      color: var(--text);
+      background: var(--button-bg);
+    }
+
+    .button,
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .icon-button {
+      min-width: 40px;
+      padding-inline: 10px;
+    }
+
+    .button:hover,
+    .icon-button:hover:not(:disabled) {
+      border-color: #60a5fa;
+      background: var(--button-hover);
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .button.primary:hover {
+      background: #1d4ed8;
+    }
+
+    .icon-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.42;
+    }
+
+    .page-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
 
     .page-input {
       width: 62px;
-      min-height: 38px;
-      padding: 7px;
-      border: 1px solid #4b5563;
-      border-radius: 8px;
-      outline: none;
-      color: #f9fafb;
-      background: #111827;
-      font: inherit;
+      padding: 7px 8px;
       text-align: center;
+      appearance: textfield;
     }
 
-    .page-info,
+    .page-input::-webkit-inner-spin-button,
+    .page-input::-webkit-outer-spin-button {
+      margin: 0;
+      appearance: none;
+    }
+
+    .page-count,
     .zoom-label {
-      color: #d1d5db;
-      font-size: 0.9rem;
+      color: var(--muted);
+      font-size: 0.88rem;
       white-space: nowrap;
     }
 
@@ -126,62 +203,196 @@
       position: relative;
       flex: 1;
       overflow: auto;
-      padding: 28px;
-      background: #111827;
-      text-align: center;
+      overscroll-behavior: contain;
+      scroll-behavior: smooth;
+      padding:
+        24px
+        max(18px, env(safe-area-inset-right))
+        max(34px, env(safe-area-inset-bottom))
+        max(18px, env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at top, rgb(55 65 81 / 35%), transparent 32rem),
+        var(--stage-bg);
     }
 
-    .canvas-wrapper {
-      display: inline-block;
-      min-height: 200px;
-      box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+    .pages {
+      width: max-content;
+      min-width: 100%;
+      margin: 0 auto;
     }
 
-    canvas {
+    .page-shell {
+      position: relative;
+      display: flex;
+      width: 100%;
+      min-width: max-content;
+      align-items: center;
+      flex-direction: column;
+      margin: 0 auto 26px;
+      scroll-margin-top: 18px;
+    }
+
+    .page-number-badge {
+      margin-bottom: 8px;
+      padding: 4px 9px;
+      border: 1px solid #374151;
+      border-radius: 999px;
+      color: #cbd5e1;
+      background: rgb(31 41 55 / 88%);
+      font-size: 0.76rem;
+      font-weight: 700;
+      box-shadow: 0 5px 14px rgb(0 0 0 / 16%);
+    }
+
+    .page-surface {
+      position: relative;
+      display: flex;
+      width: min(1000px, calc(100vw - 64px));
+      min-width: 240px;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 3px;
+      background: #ffffff;
+      box-shadow: 0 18px 52px rgb(0 0 0 / 42%);
+    }
+
+    .page-canvas {
       display: block;
-      max-width: none;
-      background: #fff;
+      background: #ffffff;
     }
 
-    .status {
+    .page-loader {
       position: absolute;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 30px;
-      color: #d1d5db;
-      font-size: 1rem;
+      padding: 24px;
+      color: #64748b;
+      background:
+        linear-gradient(
+          110deg,
+          #ffffff 8%,
+          #f1f5f9 18%,
+          #ffffff 33%
+        );
+      background-size: 220% 100%;
+      font-size: 0.9rem;
+      animation: shimmer 1.5s linear infinite;
+    }
+
+    .page-loader[hidden] {
+      display: none;
+    }
+
+    @keyframes shimmer {
+      to {
+        background-position-x: -220%;
+      }
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background: rgb(17 24 39 / 82%);
+      color: var(--muted);
       text-align: center;
+      backdrop-filter: blur(3px);
     }
 
     .status[hidden] {
       display: none;
     }
 
-    @media (max-width: 760px) {
+    .status-card {
+      max-width: 520px;
+      padding: 22px 24px;
+      border: 1px solid #374151;
+      border-radius: 14px;
+      background: rgb(31 41 55 / 96%);
+      box-shadow: 0 18px 46px rgb(0 0 0 / 28%);
+    }
+
+    .status-title {
+      margin: 0;
+      color: var(--text);
+      font-weight: 750;
+    }
+
+    .status-detail {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.65;
+    }
+
+    .status[data-error="true"] .status-title {
+      color: var(--danger);
+    }
+
+    @media (max-width: 900px) {
       .toolbar {
-        min-height: auto;
         align-items: stretch;
         flex-wrap: wrap;
       }
 
-      .title {
-        width: calc(100% - 90px);
+      .title-block {
+        order: 1;
+        width: calc(100% - 110px);
         flex: initial;
       }
 
+      .back-button {
+        order: 0;
+      }
+
+      .download-button {
+        order: 2;
+        margin-left: auto;
+      }
+
       .controls {
+        order: 3;
         width: 100%;
         overflow-x: auto;
+        padding-bottom: 2px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .toolbar {
+        gap: 8px;
+      }
+
+      .button {
+        padding-inline: 10px;
       }
 
       .stage {
-        padding: 16px;
+        padding:
+          14px
+          max(10px, env(safe-area-inset-right))
+          max(24px, env(safe-area-inset-bottom))
+          max(10px, env(safe-area-inset-left));
       }
 
-      .download {
-        margin-left: auto;
+      .page-shell {
+        margin-bottom: 16px;
+      }
+
+      .page-surface {
+        width: calc(100vw - 20px);
+      }
+
+      .fit-text,
+      .nav-text {
+        display: none;
       }
     }
   </style>
@@ -189,35 +400,99 @@
 
 <body>
   <header class="toolbar">
-    <a class="back" href="./">返回</a>
+    <a class="button back-button" href="./">
+      返回
+    </a>
 
-    <div class="title" id="title">PDF 预览</div>
+    <div class="title-block">
+      <div class="title" id="document-title">
+        PDF 连续预览
+      </div>
 
-    <div class="controls">
-      <button id="previous" type="button">上一页</button>
+      <div class="route" id="route" data-state="loading">
+        <span class="route-dot" aria-hidden="true"></span>
+        <span id="route-text">正在准备加载线路</span>
+      </div>
+    </div>
 
-      <input
-        class="page-input"
-        id="page-number"
-        type="number"
-        min="1"
-        value="1"
-        aria-label="页码"
+    <div class="controls" aria-label="PDF 阅读控制">
+      <button
+        class="icon-button"
+        id="previous"
+        type="button"
+        title="滚动到上一页"
+        disabled
       >
+        <span class="nav-text">上一页</span>
+        <span aria-hidden="true">↑</span>
+      </button>
 
-      <span class="page-info">
-        / <span id="page-count">—</span>
+      <div class="page-control">
+        <input
+          class="page-input"
+          id="page-number"
+          type="number"
+          min="1"
+          value="1"
+          inputmode="numeric"
+          aria-label="当前页码"
+          disabled
+        >
+
+        <span class="page-count">
+          / <span id="page-count">—</span>
+        </span>
+      </div>
+
+      <button
+        class="icon-button"
+        id="next"
+        type="button"
+        title="滚动到下一页"
+        disabled
+      >
+        <span aria-hidden="true">↓</span>
+        <span class="nav-text">下一页</span>
+      </button>
+
+      <button
+        class="icon-button"
+        id="zoom-out"
+        type="button"
+        title="缩小全部页面"
+        disabled
+      >
+        −
+      </button>
+
+      <span class="zoom-label" id="zoom-label">
+        适合宽度
       </span>
 
-      <button id="next" type="button">下一页</button>
+      <button
+        class="icon-button"
+        id="zoom-in"
+        type="button"
+        title="放大全部页面"
+        disabled
+      >
+        ＋
+      </button>
 
-      <button id="zoom-out" type="button">−</button>
-      <span class="zoom-label" id="zoom-label">100%</span>
-      <button id="zoom-in" type="button">＋</button>
+      <button
+        class="button"
+        id="fit-width"
+        type="button"
+        title="全部页面适合宽度"
+        disabled
+      >
+        <span class="fit-text">适合宽度</span>
+        <span aria-hidden="true">↔</span>
+      </button>
     </div>
 
     <a
-      class="download"
+      class="button primary download-button"
       id="download"
       href="#"
       target="_blank"
@@ -228,108 +503,578 @@
   </header>
 
   <main class="stage" id="stage">
-    <div class="status" id="status">正在加载 PDF……</div>
+    <div
+      class="status"
+      id="status"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="status-card">
+        <p class="status-title" id="status-title">
+          正在加载 PDF.js
+        </p>
 
-    <div class="canvas-wrapper">
-      <canvas id="canvas" hidden></canvas>
+        <p class="status-detail" id="status-detail">
+          首次加载可能需要一点时间。
+        </p>
+      </div>
     </div>
+
+    <div class="pages" id="pages"></div>
   </main>
 
   <script type="module">
-    import * as pdfjsLib from
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.mjs";
+    const PDFJS_VERSION = "6.1.200";
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.worker.mjs";
+    const PDFJS_MODULE_URL =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.mjs`;
 
-    const parameters = new URLSearchParams(window.location.search);
+    const PDFJS_WORKER_URL =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.mjs`;
+
+    const PDFJS_CMAP_URL =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/cmaps/`;
+
+    const PDFJS_STANDARD_FONT_URL =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/standard_fonts/`;
+
+    const PDFJS_WASM_URL =
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/wasm/`;
+
+    const GHFAST_HOST = "ghfast.top";
+
+    const GHFAST_RAW_PATH_PREFIX =
+      "/https://raw.githubusercontent.com/";
+
+    const RENDER_AHEAD_MARGIN = "1400px 0px";
+    const KEEP_RENDERED_DISTANCE = 8;
+
+    const parameters = new URLSearchParams(
+      window.location.search
+    );
 
     const fileParameter = parameters.get("file");
-    const titleParameter = parameters.get("title") || "PDF 预览";
-    const downloadParameter = parameters.get("download") || fileParameter;
 
-    const titleElement = document.getElementById("title");
-    const statusElement = document.getElementById("status");
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
+    /*
+     * 新链接可使用 accelerated=；
+     * 当前已有链接只有 download= 时，也会自动用于加速预览。
+     */
+    const acceleratedParameter =
+      parameters.get("accelerated") ||
+      parameters.get("download");
 
-    const previousButton = document.getElementById("previous");
-    const nextButton = document.getElementById("next");
-    const zoomOutButton = document.getElementById("zoom-out");
-    const zoomInButton = document.getElementById("zoom-in");
+    const downloadParameter =
+      parameters.get("download");
 
-    const pageNumberInput = document.getElementById("page-number");
-    const pageCountElement = document.getElementById("page-count");
-    const zoomLabel = document.getElementById("zoom-label");
-    const downloadLink = document.getElementById("download");
+    const titleParameter =
+      parameters.get("title") ||
+      "PDF 连续预览";
 
+    const titleElement =
+      document.getElementById("document-title");
+
+    const routeElement =
+      document.getElementById("route");
+
+    const routeTextElement =
+      document.getElementById("route-text");
+
+    const statusElement =
+      document.getElementById("status");
+
+    const statusTitleElement =
+      document.getElementById("status-title");
+
+    const statusDetailElement =
+      document.getElementById("status-detail");
+
+    const stageElement =
+      document.getElementById("stage");
+
+    const pagesElement =
+      document.getElementById("pages");
+
+    const previousButton =
+      document.getElementById("previous");
+
+    const nextButton =
+      document.getElementById("next");
+
+    const pageNumberInput =
+      document.getElementById("page-number");
+
+    const pageCountElement =
+      document.getElementById("page-count");
+
+    const zoomOutButton =
+      document.getElementById("zoom-out");
+
+    const zoomInButton =
+      document.getElementById("zoom-in");
+
+    const fitWidthButton =
+      document.getElementById("fit-width");
+
+    const zoomLabel =
+      document.getElementById("zoom-label");
+
+    const downloadLink =
+      document.getElementById("download");
+
+    let pdfjsLib = null;
     let documentHandle = null;
-    let pageNumber = 1;
-    let scale = 1.2;
-    let rendering = false;
-    let pendingPage = null;
+    let currentPageNumber = 1;
+    let customScale = 1.2;
+    let fitWidthEnabled = true;
+    let defaultPageRatio = 1.414;
+    let pageObserver = null;
+    let scrollFrame = null;
+    let resizeTimer = null;
+
+    /*
+     * pageStates:
+     * pageNumber -> {
+     *   shell,
+     *   surface,
+     *   canvas,
+     *   loader,
+     *   renderTask,
+     *   rendered,
+     *   rendering,
+     *   scale
+     * }
+     */
+    const pageStates = new Map();
 
     titleElement.textContent = titleParameter;
-    document.title = `${titleParameter} - PDF 预览`;
+    document.title = `${titleParameter} - PDF 连续预览`;
 
-    if (downloadParameter) {
-      downloadLink.href = downloadParameter;
-    } else {
-      downloadLink.hidden = true;
+    function setRoute(state, message) {
+      routeElement.dataset.state = state;
+      routeTextElement.textContent = message;
     }
 
-    function showError(message) {
+    function showStatus(
+      title,
+      detail = "",
+      isError = false
+    ) {
       statusElement.hidden = false;
-      statusElement.textContent = message;
-      canvas.hidden = true;
+      statusElement.dataset.error =
+        isError ? "true" : "false";
+
+      statusTitleElement.textContent = title;
+      statusDetailElement.textContent = detail;
     }
 
-    function updateControls() {
+    function hideStatus() {
+      statusElement.hidden = true;
+      statusElement.dataset.error = "false";
+    }
+
+    function showFatalError(title, detail) {
+      setRoute("error", "PDF 加载失败");
+      showStatus(title, detail, true);
+      setControlsEnabled(false);
+    }
+
+    function setControlsEnabled(enabled) {
+      pageNumberInput.disabled = !enabled;
+      zoomOutButton.disabled = !enabled;
+      zoomInButton.disabled = !enabled;
+      fitWidthButton.disabled = !enabled;
+
+      updateNavigationButtons();
+    }
+
+    function updateNavigationButtons() {
+      const enabled = Boolean(documentHandle);
+
       previousButton.disabled =
-        !documentHandle || pageNumber <= 1;
+        !enabled || currentPageNumber <= 1;
 
       nextButton.disabled =
-        !documentHandle ||
-        pageNumber >= documentHandle.numPages;
-
-      pageNumberInput.value = pageNumber;
-      zoomLabel.textContent =
-        `${Math.round(scale * 100)}%`;
+        !enabled ||
+        currentPageNumber >= documentHandle.numPages;
     }
 
-    async function renderPage(targetPage) {
+    function isSameOriginPdf(value) {
+      if (!value) {
+        return null;
+      }
+
+      try {
+        const url = new URL(
+          value,
+          window.location.href
+        );
+
+        if (
+          url.origin !== window.location.origin ||
+          !url.pathname
+            .toLocaleLowerCase()
+            .endsWith(".pdf")
+        ) {
+          return null;
+        }
+
+        return url;
+      } catch {
+        return null;
+      }
+    }
+
+    function isTrustedAcceleratedUrl(value) {
+      if (!value) {
+        return null;
+      }
+
+      try {
+        const url = new URL(value);
+
+        if (
+          url.protocol !== "https:" ||
+          url.hostname !== GHFAST_HOST ||
+          !url.pathname.startsWith(
+            GHFAST_RAW_PATH_PREFIX
+          )
+        ) {
+          return null;
+        }
+
+        return url;
+      } catch {
+        return null;
+      }
+    }
+
+    function resolveDownloadUrl(
+      localPdfUrl,
+      acceleratedUrl
+    ) {
+      const trustedDownload =
+        isTrustedAcceleratedUrl(
+          downloadParameter
+        );
+
+      if (trustedDownload) {
+        return trustedDownload.href;
+      }
+
+      const localDownload =
+        isSameOriginPdf(downloadParameter);
+
+      if (localDownload) {
+        return localDownload.href;
+      }
+
+      if (acceleratedUrl) {
+        return acceleratedUrl.href;
+      }
+
+      return localPdfUrl.href;
+    }
+
+    function updateProgress(
+      loaded,
+      total,
+      routeName
+    ) {
+      if (
+        Number.isFinite(total) &&
+        total > 0
+      ) {
+        const percentage = Math.min(
+          100,
+          Math.round((loaded / total) * 100)
+        );
+
+        showStatus(
+          `正在通过${routeName}加载`,
+          `已加载 ${percentage}%`
+        );
+
+        return;
+      }
+
+      const megabytes =
+        Number.isFinite(loaded)
+          ? (loaded / 1024 / 1024).toFixed(1)
+          : "0.0";
+
+      showStatus(
+        `正在通过${routeName}加载`,
+        `已接收 ${megabytes} MB`
+      );
+    }
+
+    async function loadPdfDocument(
+      url,
+      {
+        routeName,
+        forceCompleteDownload
+      }
+    ) {
+      const loadingTask = pdfjsLib.getDocument({
+        url,
+
+        cMapUrl: PDFJS_CMAP_URL,
+        cMapPacked: true,
+
+        standardFontDataUrl:
+          PDFJS_STANDARD_FONT_URL,
+
+        wasmUrl: PDFJS_WASM_URL,
+
+        /*
+         * 第三方代理可能不完整支持 Range 请求。
+         * 加速线路采用完整下载模式。
+         */
+        disableRange: forceCompleteDownload,
+        disableStream: forceCompleteDownload,
+        disableAutoFetch: forceCompleteDownload,
+
+        withCredentials: false
+      });
+
+      loadingTask.onProgress = ({
+        loaded,
+        total
+      }) => {
+        updateProgress(
+          loaded,
+          total,
+          routeName
+        );
+      };
+
+      try {
+        return await loadingTask.promise;
+      } catch (error) {
+        try {
+          await loadingTask.destroy();
+        } catch {
+          // 清理失败不影响回退。
+        }
+
+        throw error;
+      }
+    }
+
+    function calculateFitWidthScale(
+      pageViewportAtScaleOne
+    ) {
+      const horizontalPadding =
+        window.innerWidth <= 560
+          ? 24
+          : 70;
+
+      const availableWidth = Math.max(
+        Math.min(
+          stageElement.clientWidth -
+            horizontalPadding,
+          1180
+        ),
+        260
+      );
+
+      return Math.min(
+        2.8,
+        Math.max(
+          0.3,
+          availableWidth /
+            pageViewportAtScaleOne.width
+        )
+      );
+    }
+
+    function updateZoomLabel(scale = null) {
+      if (fitWidthEnabled) {
+        zoomLabel.textContent =
+          scale
+            ? `适合宽度 · ${Math.round(scale * 100)}%`
+            : "适合宽度";
+      } else {
+        zoomLabel.textContent =
+          `${Math.round(customScale * 100)}%`;
+      }
+    }
+
+    function createPageShell(pageNumber) {
+      const shell = document.createElement("section");
+      shell.className = "page-shell";
+      shell.dataset.pageNumber = String(pageNumber);
+
+      const badge = document.createElement("div");
+      badge.className = "page-number-badge";
+      badge.textContent =
+        `第 ${pageNumber} 页`;
+
+      const surface = document.createElement("div");
+      surface.className = "page-surface";
+      surface.style.aspectRatio =
+        `1 / ${defaultPageRatio}`;
+
+      const canvas = document.createElement("canvas");
+      canvas.className = "page-canvas";
+      canvas.hidden = true;
+
+      const loader = document.createElement("div");
+      loader.className = "page-loader";
+      loader.textContent =
+        `第 ${pageNumber} 页等待渲染`;
+
+      surface.append(canvas, loader);
+      shell.append(badge, surface);
+
+      const state = {
+        shell,
+        surface,
+        canvas,
+        loader,
+        renderTask: null,
+        rendered: false,
+        rendering: false,
+        scale: null
+      };
+
+      pageStates.set(pageNumber, state);
+      return shell;
+    }
+
+    function createAllPageShells() {
+      const fragment =
+        document.createDocumentFragment();
+
+      for (
+        let pageNumber = 1;
+        pageNumber <= documentHandle.numPages;
+        pageNumber += 1
+      ) {
+        fragment.append(
+          createPageShell(pageNumber)
+        );
+      }
+
+      pagesElement.replaceChildren(fragment);
+    }
+
+    function setupPageObserver() {
+      pageObserver?.disconnect();
+
+      pageObserver = new IntersectionObserver(
+        entries => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) {
+              continue;
+            }
+
+            const pageNumber = Number(
+              entry.target.dataset.pageNumber
+            );
+
+            void renderPage(pageNumber);
+          }
+        },
+        {
+          root: stageElement,
+          rootMargin: RENDER_AHEAD_MARGIN,
+          threshold: 0.01
+        }
+      );
+
+      for (const state of pageStates.values()) {
+        pageObserver.observe(state.shell);
+      }
+    }
+
+    async function renderPage(pageNumber) {
       if (!documentHandle) {
         return;
       }
 
-      if (rendering) {
-        pendingPage = targetPage;
+      const state = pageStates.get(pageNumber);
+
+      if (
+        !state ||
+        state.rendering ||
+        (
+          state.rendered &&
+          (
+            fitWidthEnabled ||
+            state.scale === customScale
+          )
+        )
+      ) {
         return;
       }
 
-      rendering = true;
-      statusElement.hidden = false;
-      statusElement.textContent =
-        `正在渲染第 ${targetPage} 页……`;
+      state.rendering = true;
+      state.loader.hidden = false;
+      state.loader.textContent =
+        `正在渲染第 ${pageNumber} 页`;
 
       try {
-        const page = await documentHandle.getPage(targetPage);
-        const viewport = page.getViewport({ scale });
+        const page =
+          await documentHandle.getPage(pageNumber);
 
-        const outputScale =
-          window.devicePixelRatio || 1;
+        const viewportAtScaleOne =
+          page.getViewport({
+            scale: 1
+          });
 
-        canvas.width =
-          Math.floor(viewport.width * outputScale);
+        const renderScale =
+          fitWidthEnabled
+            ? calculateFitWidthScale(
+                viewportAtScaleOne
+              )
+            : customScale;
 
-        canvas.height =
-          Math.floor(viewport.height * outputScale);
+        const viewport = page.getViewport({
+          scale: renderScale
+        });
 
-        canvas.style.width =
+        const outputScale = Math.min(
+          window.devicePixelRatio || 1,
+          2
+        );
+
+        state.canvas.width = Math.max(
+          1,
+          Math.floor(
+            viewport.width * outputScale
+          )
+        );
+
+        state.canvas.height = Math.max(
+          1,
+          Math.floor(
+            viewport.height * outputScale
+          )
+        );
+
+        state.canvas.style.width =
           `${Math.floor(viewport.width)}px`;
 
-        canvas.style.height =
+        state.canvas.style.height =
           `${Math.floor(viewport.height)}px`;
+
+        state.surface.style.width =
+          `${Math.floor(viewport.width)}px`;
+
+        state.surface.style.height =
+          `${Math.floor(viewport.height)}px`;
+
+        state.surface.style.aspectRatio =
+          "auto";
+
+        const context =
+          state.canvas.getContext(
+            "2d",
+            {
+              alpha: false
+            }
+          );
 
         const transform =
           outputScale === 1
@@ -343,149 +1088,637 @@
                 0
               ];
 
-        await page.render({
+        state.renderTask = page.render({
           canvasContext: context,
           transform,
           viewport
-        }).promise;
+        });
 
-        pageNumber = targetPage;
-        canvas.hidden = false;
-        statusElement.hidden = true;
-        updateControls();
-      } catch (error) {
-        console.error(error);
-        showError("这一页渲染失败，请检查 PDF 文件。");
-      } finally {
-        rendering = false;
+        await state.renderTask.promise;
+
+        state.canvas.hidden = false;
+        state.loader.hidden = true;
+        state.rendered = true;
+        state.scale = renderScale;
 
         if (
-          pendingPage !== null &&
-          pendingPage !== pageNumber
+          pageNumber === currentPageNumber
         ) {
-          const nextPendingPage = pendingPage;
-          pendingPage = null;
-          renderPage(nextPendingPage);
-        } else {
-          pendingPage = null;
+          updateZoomLabel(renderScale);
+        }
+
+        page.cleanup();
+      } catch (error) {
+        if (
+          error?.name ===
+          "RenderingCancelledException"
+        ) {
+          return;
+        }
+
+        console.error(
+          `第 ${pageNumber} 页渲染失败：`,
+          error
+        );
+
+        state.loader.hidden = false;
+        state.loader.textContent =
+          `第 ${pageNumber} 页渲染失败`;
+      } finally {
+        state.rendering = false;
+        state.renderTask = null;
+      }
+    }
+
+    function unloadPage(pageNumber) {
+      const state = pageStates.get(pageNumber);
+
+      if (
+        !state ||
+        !state.rendered ||
+        state.rendering
+      ) {
+        return;
+      }
+
+      try {
+        state.renderTask?.cancel();
+      } catch {
+        // 已完成的任务无需处理。
+      }
+
+      state.canvas.width = 1;
+      state.canvas.height = 1;
+      state.canvas.removeAttribute("style");
+      state.canvas.hidden = true;
+
+      state.loader.hidden = false;
+      state.loader.textContent =
+        `第 ${pageNumber} 页等待渲染`;
+
+      state.rendered = false;
+      state.scale = null;
+    }
+
+    function trimDistantPages() {
+      for (
+        const [
+          pageNumber,
+          state
+        ] of pageStates
+      ) {
+        if (
+          state.rendered &&
+          Math.abs(
+            pageNumber -
+            currentPageNumber
+          ) > KEEP_RENDERED_DISTANCE
+        ) {
+          unloadPage(pageNumber);
         }
       }
     }
 
-    function requestPage(targetPage) {
+    function updateCurrentPageFromScroll() {
+      scrollFrame = null;
+
+      if (!documentHandle) {
+        return;
+      }
+
+      const stageRect =
+        stageElement.getBoundingClientRect();
+
+      const targetY =
+        stageRect.top +
+        stageRect.height * 0.38;
+
+      let nearestPage = currentPageNumber;
+      let nearestDistance = Infinity;
+
+      for (
+        const [
+          pageNumber,
+          state
+        ] of pageStates
+      ) {
+        const rect =
+          state.shell.getBoundingClientRect();
+
+        if (
+          rect.bottom <
+          stageRect.top - stageRect.height
+        ) {
+          continue;
+        }
+
+        if (
+          rect.top >
+          stageRect.bottom + stageRect.height
+        ) {
+          break;
+        }
+
+        const center =
+          rect.top + rect.height / 2;
+
+        const distance =
+          Math.abs(center - targetY);
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestPage = pageNumber;
+        }
+      }
+
+      if (
+        nearestPage !== currentPageNumber
+      ) {
+        currentPageNumber = nearestPage;
+        pageNumberInput.value =
+          currentPageNumber;
+
+        updateNavigationButtons();
+
+        const state =
+          pageStates.get(currentPageNumber);
+
+        if (state?.scale) {
+          updateZoomLabel(state.scale);
+        }
+
+        trimDistantPages();
+      }
+    }
+
+    function scheduleCurrentPageUpdate() {
+      if (scrollFrame !== null) {
+        return;
+      }
+
+      scrollFrame =
+        window.requestAnimationFrame(
+          updateCurrentPageFromScroll
+        );
+    }
+
+    function scrollToPage(
+      pageNumber,
+      behavior = "smooth"
+    ) {
       if (!documentHandle) {
         return;
       }
 
       const normalized = Math.min(
-        Math.max(Number(targetPage) || 1, 1),
+        Math.max(
+          Number(pageNumber) || 1,
+          1
+        ),
         documentHandle.numPages
       );
 
-      renderPage(normalized);
+      const state =
+        pageStates.get(normalized);
+
+      if (!state) {
+        return;
+      }
+
+      currentPageNumber = normalized;
+      pageNumberInput.value = normalized;
+      updateNavigationButtons();
+
+      state.shell.scrollIntoView({
+        behavior,
+        block: "start",
+        inline: "center"
+      });
+
+      void renderPage(normalized);
     }
 
-    previousButton.addEventListener("click", () => {
-      requestPage(pageNumber - 1);
-    });
-
-    nextButton.addEventListener("click", () => {
-      requestPage(pageNumber + 1);
-    });
-
-    pageNumberInput.addEventListener("change", () => {
-      requestPage(pageNumberInput.value);
-    });
-
-    zoomOutButton.addEventListener("click", () => {
-      scale = Math.max(0.5, scale - 0.2);
-      renderPage(pageNumber);
-    });
-
-    zoomInButton.addEventListener("click", () => {
-      scale = Math.min(3, scale + 0.2);
-      renderPage(pageNumber);
-    });
-
-    document.addEventListener("keydown", event => {
-      if (event.target === pageNumberInput) {
-        return;
-      }
-
-      if (
-        event.key === "ArrowLeft" ||
-        event.key === "PageUp"
+    function invalidateRenderedPages() {
+      for (
+        const [
+          pageNumber,
+          state
+        ] of pageStates
       ) {
-        requestPage(pageNumber - 1);
+        if (state.rendering) {
+          try {
+            state.renderTask?.cancel();
+          } catch {
+            // 忽略取消异常。
+          }
+        }
+
+        state.canvas.width = 1;
+        state.canvas.height = 1;
+        state.canvas.removeAttribute("style");
+        state.canvas.hidden = true;
+
+        state.surface.removeAttribute("style");
+        state.surface.style.aspectRatio =
+          `1 / ${defaultPageRatio}`;
+
+        state.loader.hidden = false;
+        state.loader.textContent =
+          `第 ${pageNumber} 页等待渲染`;
+
+        state.rendered = false;
+        state.rendering = false;
+        state.renderTask = null;
+        state.scale = null;
       }
 
-      if (
-        event.key === "ArrowRight" ||
-        event.key === "PageDown"
-      ) {
-        requestPage(pageNumber + 1);
-      }
-    });
+      setupPageObserver();
 
-    async function start() {
-      if (!fileParameter) {
-        showError("没有指定需要预览的 PDF。");
-        return;
-      }
-
-      const pdfUrl = new URL(
-        fileParameter,
-        window.location.href
+      void renderPage(currentPageNumber);
+      void renderPage(
+        Math.max(1, currentPageNumber - 1)
+      );
+      void renderPage(
+        Math.min(
+          documentHandle.numPages,
+          currentPageNumber + 1
+        )
       );
 
-      /*
-       * 只允许读取本站的 PDF，避免 viewer.html
-       * 被用于加载任意外部资源。
-       */
-      if (
-        pdfUrl.origin !== window.location.origin ||
-        !pdfUrl.pathname.toLowerCase().endsWith(".pdf")
-      ) {
-        showError("PDF 地址无效或不属于本站。");
-        return;
+      window.setTimeout(
+        () => {
+          scrollToPage(
+            currentPageNumber,
+            "auto"
+          );
+        },
+        30
+      );
+    }
+
+    function changeZoom(delta) {
+      fitWidthEnabled = false;
+
+      customScale = Math.min(
+        3.5,
+        Math.max(
+          0.4,
+          customScale + delta
+        )
+      );
+
+      updateZoomLabel();
+      invalidateRenderedPages();
+    }
+
+    previousButton.addEventListener(
+      "click",
+      () => {
+        scrollToPage(
+          currentPageNumber - 1
+        );
       }
+    );
+
+    nextButton.addEventListener(
+      "click",
+      () => {
+        scrollToPage(
+          currentPageNumber + 1
+        );
+      }
+    );
+
+    pageNumberInput.addEventListener(
+      "change",
+      () => {
+        scrollToPage(
+          pageNumberInput.value
+        );
+      }
+    );
+
+    pageNumberInput.addEventListener(
+      "keydown",
+      event => {
+        if (event.key === "Enter") {
+          pageNumberInput.blur();
+          scrollToPage(
+            pageNumberInput.value
+          );
+        }
+      }
+    );
+
+    zoomOutButton.addEventListener(
+      "click",
+      () => {
+        changeZoom(-0.15);
+      }
+    );
+
+    zoomInButton.addEventListener(
+      "click",
+      () => {
+        changeZoom(0.15);
+      }
+    );
+
+    fitWidthButton.addEventListener(
+      "click",
+      () => {
+        fitWidthEnabled = true;
+        updateZoomLabel();
+        invalidateRenderedPages();
+      }
+    );
+
+    stageElement.addEventListener(
+      "scroll",
+      scheduleCurrentPageUpdate,
+      {
+        passive: true
+      }
+    );
+
+    document.addEventListener(
+      "keydown",
+      event => {
+        const tagName =
+          event.target?.tagName;
+
+        if (
+          tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey
+        ) {
+          return;
+        }
+
+        if (event.key === "PageUp") {
+          event.preventDefault();
+          scrollToPage(
+            currentPageNumber - 1
+          );
+        }
+
+        if (event.key === "PageDown") {
+          event.preventDefault();
+          scrollToPage(
+            currentPageNumber + 1
+          );
+        }
+
+        if (event.key === "+" || event.key === "=") {
+          event.preventDefault();
+          changeZoom(0.15);
+        }
+
+        if (event.key === "-") {
+          event.preventDefault();
+          changeZoom(-0.15);
+        }
+
+        if (event.key === "0") {
+          event.preventDefault();
+          fitWidthEnabled = true;
+          updateZoomLabel();
+          invalidateRenderedPages();
+        }
+      }
+    );
+
+    window.addEventListener(
+      "resize",
+      () => {
+        if (
+          !documentHandle ||
+          !fitWidthEnabled
+        ) {
+          return;
+        }
+
+        window.clearTimeout(
+          resizeTimer
+        );
+
+        resizeTimer = window.setTimeout(
+          () => {
+            invalidateRenderedPages();
+          },
+          220
+        );
+      }
+    );
+
+    async function loadPdfJsLibrary() {
+      showStatus(
+        "正在加载 PDF.js",
+        "正在连接渲染组件"
+      );
 
       try {
-        const loadingTask = pdfjsLib.getDocument({
-          url: pdfUrl.href,
+        pdfjsLib = await import(
+          PDFJS_MODULE_URL
+        );
 
-          cMapUrl:
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/cmaps/",
-
-          cMapPacked: true,
-
-          standardFontDataUrl:
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/standard_fonts/",
-
-          wasmUrl:
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/wasm/"
-        });
-
-        documentHandle = await loadingTask.promise;
-
-        pageCountElement.textContent =
-          documentHandle.numPages;
-
-        pageNumberInput.max =
-          documentHandle.numPages;
-
-        updateControls();
-        await renderPage(1);
+        pdfjsLib
+          .GlobalWorkerOptions
+          .workerSrc = PDFJS_WORKER_URL;
       } catch (error) {
-        console.error(error);
+        console.error(
+          "PDF.js 加载失败：",
+          error
+        );
 
-        showError(
-          "PDF 加载失败。请确认文件存在，并等待 GitHub Pages 部署完成。"
+        throw new Error(
+          "无法加载 PDF.js 渲染组件。"
         );
       }
     }
 
-    start();
+    async function initializeContinuousPages() {
+      const firstPage =
+        await documentHandle.getPage(1);
+
+      const firstViewport =
+        firstPage.getViewport({
+          scale: 1
+        });
+
+      defaultPageRatio =
+        firstViewport.height /
+        firstViewport.width;
+
+      firstPage.cleanup();
+
+      createAllPageShells();
+      setupPageObserver();
+
+      pageCountElement.textContent =
+        documentHandle.numPages;
+
+      pageNumberInput.max =
+        documentHandle.numPages;
+
+      currentPageNumber = 1;
+      pageNumberInput.value = 1;
+
+      setControlsEnabled(true);
+      updateZoomLabel();
+
+      await renderPage(1);
+
+      hideStatus();
+
+      void renderPage(2);
+      scheduleCurrentPageUpdate();
+    }
+
+    async function start() {
+      const localPdfUrl =
+        isSameOriginPdf(fileParameter);
+
+      if (!localPdfUrl) {
+        showFatalError(
+          "PDF 地址无效",
+          "file 参数必须指向本站的 .pdf 文件。"
+        );
+
+        return;
+      }
+
+      const acceleratedUrl =
+        isTrustedAcceleratedUrl(
+          acceleratedParameter
+        );
+
+      downloadLink.href =
+        resolveDownloadUrl(
+          localPdfUrl,
+          acceleratedUrl
+        );
+
+      try {
+        await loadPdfJsLibrary();
+      } catch (error) {
+        showFatalError(
+          "阅读器加载失败",
+          `${error.message} 请检查网络后刷新页面。`
+        );
+
+        return;
+      }
+
+      /*
+       * 第一阶段：优先尝试 GHFast。
+       */
+      if (acceleratedUrl) {
+        try {
+          setRoute(
+            "loading",
+            "正在连接 GHFast 加速线路"
+          );
+
+          showStatus(
+            "正在通过 GHFast 加载",
+            "加载成功后将以连续滚动方式显示全部页面。"
+          );
+
+          documentHandle =
+            await loadPdfDocument(
+              acceleratedUrl.href,
+              {
+                routeName:
+                  " GHFast 加速线路",
+                forceCompleteDownload:
+                  true
+              }
+            );
+
+          setRoute(
+            "accelerated",
+            "GHFast 加速 · 连续预览"
+          );
+        } catch (error) {
+          console.warn(
+            "GHFast 加速预览失败，切换本站线路：",
+            error
+          );
+
+          documentHandle = null;
+        }
+      }
+
+      /*
+       * 第二阶段：加速线路失败时自动读取本站 PDF。
+       */
+      if (!documentHandle) {
+        try {
+          setRoute(
+            "loading",
+            acceleratedUrl
+              ? "加速线路不可用，正在切换本站线路"
+              : "正在连接本站线路"
+          );
+
+          showStatus(
+            acceleratedUrl
+              ? "正在切换本站线路"
+              : "正在加载 PDF",
+            "读取 GitHub Pages 中的同源 PDF 文件。"
+          );
+
+          documentHandle =
+            await loadPdfDocument(
+              localPdfUrl.href,
+              {
+                routeName:
+                  "本站线路",
+                forceCompleteDownload:
+                  false
+              }
+            );
+
+          setRoute(
+            "local",
+            acceleratedUrl
+              ? "已回退本站 · 连续预览"
+              : "本站 · 连续预览"
+          );
+        } catch (error) {
+          console.error(
+            "本站 PDF 加载失败：",
+            error
+          );
+
+          showFatalError(
+            "PDF 加载失败",
+            "请确认 PDF 已上传并等待 GitHub Pages 部署完成，也可以点击右上角下载原文件。"
+          );
+
+          return;
+        }
+      }
+
+      try {
+        await initializeContinuousPages();
+      } catch (error) {
+        console.error(
+          "连续阅读器初始化失败：",
+          error
+        );
+
+        showFatalError(
+          "阅读器初始化失败",
+          "PDF 已加载，但页面列表无法建立。请刷新后重试。"
+        );
+      }
+    }
+
+    void start();
   </script>
 </body>
 </html>
