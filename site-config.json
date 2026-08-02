@@ -1,6 +1,6 @@
 {
-  "title": "PDF 画册",
-  "description": "在线预览和下载公开 PDF 文档",
+  "title": "作文模板",
+  "description": "在线预览和下载模板",
   "owner": "test",
   "repository": "test.github.io",
   "pdf_directory": "pdf",
