@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -35,8 +36,10 @@ def load_config() -> dict[str, str]:
         "description",
         "owner",
         "repository",
+        "branch",
         "pdf_directory",
         "uncategorized_name",
+        "download_proxy",
     )
     missing = [key for key in required if not str(data.get(key, "")).strip()]
     if missing:
@@ -130,36 +133,113 @@ def render_card(
     config: dict[str, str],
 ) -> str:
     relative = pdf.relative_to(pdf_root)
+
+    # 将 PDF 复制到最终 GitHub Pages 输出目录。
     target_pdf = output_pdf_root / relative
     target_pdf.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pdf, target_pdf)
 
     title = pdf.stem.strip() or pdf.name
-    category = category_for(pdf, pdf_root, config["uncategorized_name"])
+    category = category_for(
+        pdf,
+        pdf_root,
+        config["uncategorized_name"],
+    )
     size = format_size(pdf.stat().st_size)
 
-    cover_name = hashlib.sha256(str(relative).encode("utf-8")).hexdigest()[:20]
-    cover = generate_cover(pdf, cover_root / cover_name, title)
+    # 生成 PDF 首页封面。
+    cover_name = hashlib.sha256(
+        str(relative).encode("utf-8")
+    ).hexdigest()[:20]
 
-    pdf_url = "./" + encode_path(Path(config["pdf_directory"]) / relative)
-    cover_url = "./covers/" + quote(cover.name, safe="")
+    cover = generate_cover(
+        pdf,
+        cover_root / cover_name,
+        title,
+    )
 
-    search_value = " ".join((title, pdf.name, category)).casefold()
+    pdf_path = Path(config["pdf_directory"]) / relative
 
-    return f"""<article class="pdf-card" data-search="{html.escape(search_value, quote=True)}">
-  <a class="cover-link" href="{pdf_url}" target="_blank" rel="noopener">
+    # GitHub Pages 地址：用于在线预览。
+    pdf_url = "./" + encode_path(pdf_path)
+
+    cover_url = "./covers/" + quote(
+        cover.name,
+        safe="",
+    )
+
+    # GitHub Actions 运行时自动提供 GITHUB_SHA。
+    # 本地构建时则使用 main 等配置分支。
+    raw_ref = os.environ.get(
+        "GITHUB_SHA",
+        config["branch"],
+    ).strip()
+
+    # GitHub Raw 原始文件地址。
+    raw_url = (
+        "https://raw.githubusercontent.com/"
+        + quote(config["owner"], safe="")
+        + "/"
+        + quote(config["repository"], safe="")
+        + "/"
+        + quote(raw_ref, safe="")
+        + "/"
+        + encode_path(pdf_path)
+    )
+
+    # 加速下载地址：
+    # https://ghfast.top/https://raw.githubusercontent.com/...
+    proxy_base = config["download_proxy"].rstrip("/") + "/"
+    accelerated_url = proxy_base + raw_url
+
+    search_value = " ".join(
+        (
+            title,
+            pdf.name,
+            category,
+        )
+    ).casefold()
+
+    return f"""<article class="pdf-card"
+         data-search="{html.escape(search_value, quote=True)}">
+  <a class="cover-link"
+     href="{pdf_url}"
+     target="_blank"
+     rel="noopener">
     <img class="cover"
          src="{cover_url}"
          alt="{html.escape(title)} 首页预览"
          loading="lazy">
   </a>
+
   <div class="card-body">
-    <span class="category">{html.escape(category)}</span>
-    <h2 class="card-title" title="{html.escape(title, quote=True)}">{html.escape(title)}</h2>
-    <p class="meta">{html.escape(size)}</p>
+    <span class="category">
+      {html.escape(category)}
+    </span>
+
+    <h2 class="card-title"
+        title="{html.escape(title, quote=True)}">
+      {html.escape(title)}
+    </h2>
+
+    <p class="meta">
+      {html.escape(size)}
+    </p>
+
     <div class="actions">
-      <a class="button primary" href="{pdf_url}" target="_blank" rel="noopener">打开</a>
-      <a class="button" href="{pdf_url}" download>下载</a>
+      <a class="button primary"
+         href="{pdf_url}"
+         target="_blank"
+         rel="noopener">
+        在线预览
+      </a>
+
+      <a class="button"
+         href="{accelerated_url}"
+         target="_blank"
+         rel="noopener noreferrer">
+        加速下载
+      </a>
     </div>
   </div>
 </article>"""

@@ -1,8 +1,10 @@
 {
   "title": "作文模板",
-  "description": "在线预览和下载模板",
+  "description": "在线预览和下载作文模板PDF 文档",
   "owner": "test",
   "repository": "test.github.io",
+  "branch": "main",
   "pdf_directory": "pdf",
-  "uncategorized_name": "未分类"
+  "uncategorized_name": "未分类",
+  "download_proxy": "https://ghfast.top/"
 }
