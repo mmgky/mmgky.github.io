@@ -309,11 +309,18 @@ def build_viewer_url(
     title: str,
     accelerated_url: str,
 ) -> str:
-    """生成 PDF.js 阅读器地址。"""
+    """生成优先使用 GHFast、失败后回退本站的阅读器地址。"""
     query = urlencode(
         {
+            # 本站地址：加速线路失败时回退
             "file": pdf_url,
+
+            # GHFast 地址：优先用于 PDF.js 预览
+            "accelerated": accelerated_url,
+
             "title": title,
+
+            # 下载按钮继续使用 GHFast
             "download": accelerated_url,
         }
     )
