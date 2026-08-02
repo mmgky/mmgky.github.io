@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>PDF 预览</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Microsoft YaHei",
+        sans-serif;
+      color: #e5e7eb;
+      background: #111827;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      z-index: 10;
+      display: flex;
+      min-height: 58px;
+      align-items: center;
+      gap: 14px;
+      padding: 9px 14px;
+      border-bottom: 1px solid #374151;
+      background: #1f2937;
+      box-shadow: 0 5px 18px rgb(0 0 0 / 20%);
+    }
+
+    .back,
+    .download,
+    button {
+      display: inline-flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 13px;
+      border: 1px solid #4b5563;
+      border-radius: 9px;
+      color: #f9fafb;
+      background: #374151;
+      font: inherit;
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .back:hover,
+    .download:hover,
+    button:hover:not(:disabled) {
+      border-color: #60a5fa;
+      background: #4b5563;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .download {
+      border-color: #2563eb;
+      background: #2563eb;
+    }
+
+    .download:hover {
+      background: #1d4ed8;
+    }
+
+    .title {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-input {
+      width: 62px;
+      min-height: 38px;
+      padding: 7px;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      outline: none;
+      color: #f9fafb;
+      background: #111827;
+      font: inherit;
+      text-align: center;
+    }
+
+    .page-info,
+    .zoom-label {
+      color: #d1d5db;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      flex: 1;
+      overflow: auto;
+      padding: 28px;
+      background: #111827;
+      text-align: center;
+    }
+
+    .canvas-wrapper {
+      display: inline-block;
+      min-height: 200px;
+      box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+    }
+
+    canvas {
+      display: block;
+      max-width: none;
+      background: #fff;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      color: #d1d5db;
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    .status[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 760px) {
+      .toolbar {
+        min-height: auto;
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+
+      .title {
+        width: calc(100% - 90px);
+        flex: initial;
+      }
+
+      .controls {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .stage {
+        padding: 16px;
+      }
+
+      .download {
+        margin-left: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="toolbar">
+    <a class="back" href="./">返回</a>
+
+    <div class="title" id="title">PDF 预览</div>
+
+    <div class="controls">
+      <button id="previous" type="button">上一页</button>
+
+      <input
+        class="page-input"
+        id="page-number"
+        type="number"
+        min="1"
+        value="1"
+        aria-label="页码"
+      >
+
+      <span class="page-info">
+        / <span id="page-count">—</span>
+      </span>
+
+      <button id="next" type="button">下一页</button>
+
+      <button id="zoom-out" type="button">−</button>
+      <span class="zoom-label" id="zoom-label">100%</span>
+      <button id="zoom-in" type="button">＋</button>
+    </div>
+
+    <a
+      class="download"
+      id="download"
+      href="#"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      下载
+    </a>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="status" id="status">正在加载 PDF……</div>
+
+    <div class="canvas-wrapper">
+      <canvas id="canvas" hidden></canvas>
+    </div>
+  </main>
+
+  <script type="module">
+    import * as pdfjsLib from
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.mjs";
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.worker.mjs";
+
+    const parameters = new URLSearchParams(window.location.search);
+
+    const fileParameter = parameters.get("file");
+    const titleParameter = parameters.get("title") || "PDF 预览";
+    const downloadParameter = parameters.get("download") || fileParameter;
+
+    const titleElement = document.getElementById("title");
+    const statusElement = document.getElementById("status");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+
+    const previousButton = document.getElementById("previous");
+    const nextButton = document.getElementById("next");
+    const zoomOutButton = document.getElementById("zoom-out");
+    const zoomInButton = document.getElementById("zoom-in");
+
+    const pageNumberInput = document.getElementById("page-number");
+    const pageCountElement = document.getElementById("page-count");
+    const zoomLabel = document.getElementById("zoom-label");
+    const downloadLink = document.getElementById("download");
+
+    let documentHandle = null;
+    let pageNumber = 1;
+    let scale = 1.2;
+    let rendering = false;
+    let pendingPage = null;
+
+    titleElement.textContent = titleParameter;
+    document.title = `${titleParameter} - PDF 预览`;
+
+    if (downloadParameter) {
+      downloadLink.href = downloadParameter;
+    } else {
+      downloadLink.hidden = true;
+    }
+
+    function showError(message) {
+      statusElement.hidden = false;
+      statusElement.textContent = message;
+      canvas.hidden = true;
+    }
+
+    function updateControls() {
+      previousButton.disabled =
+        !documentHandle || pageNumber <= 1;
+
+      nextButton.disabled =
+        !documentHandle ||
+        pageNumber >= documentHandle.numPages;
+
+      pageNumberInput.value = pageNumber;
+      zoomLabel.textContent =
+        `${Math.round(scale * 100)}%`;
+    }
+
+    async function renderPage(targetPage) {
+      if (!documentHandle) {
+        return;
+      }
+
+      if (rendering) {
+        pendingPage = targetPage;
+        return;
+      }
+
+      rendering = true;
+      statusElement.hidden = false;
+      statusElement.textContent =
+        `正在渲染第 ${targetPage} 页……`;
+
+      try {
+        const page = await documentHandle.getPage(targetPage);
+        const viewport = page.getViewport({ scale });
+
+        const outputScale =
+          window.devicePixelRatio || 1;
+
+        canvas.width =
+          Math.floor(viewport.width * outputScale);
+
+        canvas.height =
+          Math.floor(viewport.height * outputScale);
+
+        canvas.style.width =
+          `${Math.floor(viewport.width)}px`;
+
+        canvas.style.height =
+          `${Math.floor(viewport.height)}px`;
+
+        const transform =
+          outputScale === 1
+            ? null
+            : [
+                outputScale,
+                0,
+                0,
+                outputScale,
+                0,
+                0
+              ];
+
+        await page.render({
+          canvasContext: context,
+          transform,
+          viewport
+        }).promise;
+
+        pageNumber = targetPage;
+        canvas.hidden = false;
+        statusElement.hidden = true;
+        updateControls();
+      } catch (error) {
+        console.error(error);
+        showError("这一页渲染失败，请检查 PDF 文件。");
+      } finally {
+        rendering = false;
+
+        if (
+          pendingPage !== null &&
+          pendingPage !== pageNumber
+        ) {
+          const nextPendingPage = pendingPage;
+          pendingPage = null;
+          renderPage(nextPendingPage);
+        } else {
+          pendingPage = null;
+        }
+      }
+    }
+
+    function requestPage(targetPage) {
+      if (!documentHandle) {
+        return;
+      }
+
+      const normalized = Math.min(
+        Math.max(Number(targetPage) || 1, 1),
+        documentHandle.numPages
+      );
+
+      renderPage(normalized);
+    }
+
+    previousButton.addEventListener("click", () => {
+      requestPage(pageNumber - 1);
+    });
+
+    nextButton.addEventListener("click", () => {
+      requestPage(pageNumber + 1);
+    });
+
+    pageNumberInput.addEventListener("change", () => {
+      requestPage(pageNumberInput.value);
+    });
+
+    zoomOutButton.addEventListener("click", () => {
+      scale = Math.max(0.5, scale - 0.2);
+      renderPage(pageNumber);
+    });
+
+    zoomInButton.addEventListener("click", () => {
+      scale = Math.min(3, scale + 0.2);
+      renderPage(pageNumber);
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.target === pageNumberInput) {
+        return;
+      }
+
+      if (
+        event.key === "ArrowLeft" ||
+        event.key === "PageUp"
+      ) {
+        requestPage(pageNumber - 1);
+      }
+
+      if (
+        event.key === "ArrowRight" ||
+        event.key === "PageDown"
+      ) {
+        requestPage(pageNumber + 1);
+      }
+    });
+
+    async function start() {
+      if (!fileParameter) {
+        showError("没有指定需要预览的 PDF。");
+        return;
+      }
+
+      const pdfUrl = new URL(
+        fileParameter,
+        window.location.href
+      );
+
+      /*
+       * 只允许读取本站的 PDF，避免 viewer.html
+       * 被用于加载任意外部资源。
+       */
+      if (
+        pdfUrl.origin !== window.location.origin ||
+        !pdfUrl.pathname.toLowerCase().endsWith(".pdf")
+      ) {
+        showError("PDF 地址无效或不属于本站。");
+        return;
+      }
+
+      try {
+        const loadingTask = pdfjsLib.getDocument({
+          url: pdfUrl.href,
+
+          cMapUrl:
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/cmaps/",
+
+          cMapPacked: true,
+
+          standardFontDataUrl:
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/standard_fonts/",
+
+          wasmUrl:
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/wasm/"
+        });
+
+        documentHandle = await loadingTask.promise;
+
+        pageCountElement.textContent =
+          documentHandle.numPages;
+
+        pageNumberInput.max =
+          documentHandle.numPages;
+
+        updateControls();
+        await renderPage(1);
+      } catch (error) {
+        console.error(error);
+
+        showError(
+          "PDF 加载失败。请确认文件存在，并等待 GitHub Pages 部署完成。"
+        );
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>
