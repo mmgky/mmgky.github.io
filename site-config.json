@@ -1,0 +1,8 @@
+{
+  "title": "PDF 画册",
+  "description": "在线预览和下载公开 PDF 文档",
+  "owner": "test",
+  "repository": "test.github.io",
+  "pdf_directory": "pdf",
+  "uncategorized_name": "未分类"
+}
