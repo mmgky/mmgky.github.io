@@ -2,5 +2,7 @@
 
 [在线浏览](https://mmgky.github.io/)
 
+https://mmgky.github.io/
+
 欢迎投稿开源
 
